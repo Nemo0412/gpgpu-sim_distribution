@@ -973,7 +973,7 @@ gpgpu_sim::gpgpu_sim(const gpgpu_sim_config &config, gpgpu_context *ctx)
   }
 
   icnt_wrapper_init();
-  icnt_create(m_shader_config->n_simt_clusters,
+  icnt_create(m_shader_config->n_simt_clusters + 1,
               m_memory_config->m_n_mem_sub_partition);
 
   time_vector_create(NUM_MEM_REQ_STAT);
@@ -1876,10 +1876,10 @@ unsigned long long g_single_step =
 
 void gpgpu_sim::cycle() {
   int clock_mask = next_clock_domain();
-  // if (clock_mask & ACCELERATION){
-  //   // TODO: Leshu use m_accel_unit->cycle() here, which handles read and write requests and responses
-  //   m_accel_unit->cycle();
-  // }
+  if (clock_mask & ACCELERATION){
+    // TODO: Leshu use m_accel_unit->cycle() here, which handles read and write requests and responses
+    m_accel_unit->cycle();
+  }
   if (clock_mask & CORE) {
     // shader core loading (pop from ICNT into core) follows CORE clock
     for (unsigned i = 0; i < m_shader_config->n_simt_clusters; i++)
