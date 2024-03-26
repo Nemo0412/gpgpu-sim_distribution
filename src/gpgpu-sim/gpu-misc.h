@@ -38,5 +38,6 @@ unsigned int LOGB2(unsigned int v);
 
 #define gs_min2(a, b) (((a) < (b)) ? (a) : (b))
 #define min3(x, y, z) (((x) < (y) && (x) < (z)) ? (x) : (gs_min2((y), (z))))
+#define min4(w, x, y, z) (((w) < (x) && (w) < (y) && (w) < (z)) ? (w) : (min3((x), (y), (z))))
 
 #endif

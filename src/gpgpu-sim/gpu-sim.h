@@ -42,6 +42,7 @@
 #include "addrdec.h"
 #include "gpu-cache.h"
 #include "shader.h"
+#include "accel_unit.h"
 
 // constants for statistics printouts
 #define GPU_RSTAT_SHD_INFO 0x1
@@ -422,11 +423,13 @@ class gpgpu_sim_config : public power_config,
   double core_freq;
   double icnt_freq;
   double dram_freq;
+  double accel_freq;
   double l2_freq;
   double core_period;
   double icnt_period;
   double dram_period;
   double l2_period;
+  double accel_period;
 
   // GPGPU-Sim timing model options
   unsigned long long gpu_max_cycle_opt;
@@ -624,6 +627,7 @@ class gpgpu_sim : public gpgpu_t {
   class simt_core_cluster **m_cluster;
   class memory_partition_unit **m_memory_partition_unit;
   class memory_sub_partition **m_memory_sub_partition;
+  class accel_unit *m_accel_unit;
 
   std::vector<kernel_info_t *> m_running_kernels;
   unsigned m_last_issued_kernel;
@@ -643,6 +647,7 @@ class gpgpu_sim : public gpgpu_t {
   double icnt_time;
   double dram_time;
   double l2_time;
+  double acceleration_time;  // edit by leshu
 
   // debug
   bool gpu_deadlock;
