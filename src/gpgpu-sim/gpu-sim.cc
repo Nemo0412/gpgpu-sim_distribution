@@ -1854,7 +1854,7 @@ int gpgpu_sim::next_clock_domain(void) {
   }
   if (acceleration_time <= smallest) {
     mask |= ACCELERATION;
-    acceleration_time += 0.67;
+    acceleration_time += m_config.accel_period;
   }
   return mask;
 }

@@ -17,8 +17,8 @@ class accel_unit {
 
     class gpgpu_sim *m_gpu;
     int state;
+    unsigned compute_cycles;
     
-    unsigned m_id = 0;
     unsigned warp_id = 0;
     unsigned m_core_id = 0;
     unsigned m_cluster_id;
