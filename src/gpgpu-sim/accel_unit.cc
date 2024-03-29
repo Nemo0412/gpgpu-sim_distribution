@@ -1,9 +1,9 @@
-//leshu
+// leshu
 #include <iostream>
 
 #include "accel_unit.h"
-#include "icnt_wrapper.h"
 #include "gpu-sim.h"
+#include "icnt_wrapper.h"
 
 /* READ_PACKET_SIZE:
    bytes: 6 address (flit can specify chanel so this gives up to ~2GB/channel,
@@ -18,10 +18,19 @@ accel_unit::accel_unit(gpgpu_sim *m_gpu) : m_gpu(m_gpu) {
   m_cluster_id = m_gpu->get_config().num_cluster();
   state = 1;
   compute_cycles = 0;
+  // initialize double buffer
+  buffer[0] = nullptr;
+  buffer[1] = nullptr;
 }
 
-void accel_unit::cycle(){
-  // TODO:  A state machine (state.1 request memory (transit to stage.2); stage.2 wait for memory response (check icnt_pop mf); stage.3 compute (count 1000 cycles); stage.4 write memory (transit to stage.1))
+void accel_unit::swap_buffers() {
+  active_buffer = 1 - active_buffer;  // swap buffer
+}
+
+void accel_unit::cycle() {
+  // TODO:  A state machine (state.1 request memory (transit to stage.2);
+  // stage.2 wait for memory response (check icnt_pop mf); stage.3 compute
+  // (count 1000 cycles); stage.4 write memory (transit to stage.1))
   std::cout << "Acceleration Unit: At stage=" << state << std::endl;
   // check if there is a memory response
   mem_fetch *mf = (mem_fetch *)::icnt_pop(m_cluster_id);
@@ -29,10 +38,10 @@ void accel_unit::cycle(){
     auto type = mf->get_type();
     if (type == READ_REPLY)
       printf("Acceleration Unit: Memory read response received.\n");
+    buffer[1 - active_buffer] = mf;
     else if (type == WRITE_ACK)
-      printf("Acceleration Unit: Memory write response received.\n");
+        printf("Acceleration Unit: Memory write response received.\n");
   }
-
 
   // state transition
   switch (state) {
@@ -43,8 +52,11 @@ void accel_unit::cycle(){
       break;
     case 2:
       // wait for memory response
-      if (mf && mf->get_type() == READ_REPLY)
-        state = 3;
+      if (buffer[active_buffer] &&
+          buffer[active_buffer]->get_type() == READ_REPLY)
+        swap_buffers();
+      buffer[1 - active_buffer] = nullptr;  // clear the buffer
+      state = 3;
       break;
     case 3:
       // compute
@@ -65,21 +77,28 @@ void accel_unit::cycle(){
       exit(-1);
       break;
   }
-
 }
 
-void accel_unit::send_memory_request(bool is_write){
-
+void accel_unit::send_memory_request(bool is_write) {
   mem_access_type access_type = is_write ? GLOBAL_ACC_W : GLOBAL_ACC_R;
 
-  auto access = mem_access_t(access_type, 0x1000, 128, is_write, m_gpu->gpgpu_ctx);
-  mem_fetch *mf = new mem_fetch(access, NULL, is_write ? WRITE_PACKET_SIZE : READ_PACKET_SIZE, warp_id,
-    m_core_id, m_cluster_id, m_gpu->getMemoryConfig(), m_gpu->gpu_tot_sim_cycle + m_gpu->gpu_tot_sim_cycle);
+  auto access =
+      mem_access_t(access_type, 0x1000, 128, is_write, m_gpu->gpgpu_ctx);
+  mem_fetch *mf = new mem_fetch(
+      access, NULL, is_write ? WRITE_PACKET_SIZE : READ_PACKET_SIZE, warp_id,
+      m_core_id, m_cluster_id, m_gpu->getMemoryConfig(),
+      m_gpu->gpu_tot_sim_cycle + m_gpu->gpu_tot_sim_cycle);
 
   unsigned destination = mf->get_sub_partition_id();
-  unsigned request_size = mf->get_is_write()? mf->size(): mf->get_ctrl_size();
+  unsigned request_size = mf->get_is_write() ? mf->size() : mf->get_ctrl_size();
 
-  std::cout << "Acceleration Unit: Sending memory request with size=" << request_size << "\n" 
-      "   at destination=" << destination << " in device_id=" << m_gpu->getShaderCoreConfig()->mem2device(destination) << "." << std::endl;
-  icnt_push(m_cluster_id, m_gpu->getShaderCoreConfig()->mem2device(destination), (void *)mf, request_size);
+  std::cout << "Acceleration Unit: Sending memory request with size="
+            << request_size
+            << "\n"
+               "   at destination="
+            << destination << " in device_id="
+            << m_gpu->getShaderCoreConfig()->mem2device(destination) << "."
+            << std::endl;
+  icnt_push(m_cluster_id, m_gpu->getShaderCoreConfig()->mem2device(destination),
+            (void *)mf, request_size);
 }
